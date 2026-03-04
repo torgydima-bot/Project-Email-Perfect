@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Отписка{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-5 text-center">
+    <div class="card p-5">
+      <div class="fs-1 mb-3">✅</div>
+      <h4>Вы отписались от рассылки</h4>
+      <p class="text-muted">{{ contact.email }} больше не будет получать письма.</p>
+      <p class="text-muted small">Если вы сделали это случайно — свяжитесь с нами.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

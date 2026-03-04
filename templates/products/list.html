@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Продукты{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-box-seam me-2 text-success"></i>Каталог продуктов</h4>
+  <a href="/products/import" class="btn btn-success btn-sm">
+    <i class="bi bi-upload me-1"></i>Импорт CSV
+  </a>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Название</th>
+          <th>Ссылка</th>
+          <th>Фото</th>
+          <th class="text-center">Использован</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td><strong>{{ p.name }}</strong></td>
+          <td>
+            {% if p.url %}
+              <a href="{{ p.url }}" target="_blank" class="text-success text-truncate d-inline-block" style="max-width:200px">
+                <i class="bi bi-box-arrow-up-right me-1"></i>{{ p.url }}
+              </a>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.photo_filename %}
+              <img src="/static/uploads/{{ p.photo_filename }}" class="product-photo-preview" alt="">
+            {% else %}
+              <span class="text-muted small">нет фото</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <span class="badge bg-secondary">{{ p.used_count }}×</span>
+          </td>
+          <td class="text-end">
+            <form method="post" action="/products/{{ p.id }}/delete" class="d-inline"
+                  onsubmit="return confirm('Удалить продукт?')">
+              <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-muted py-4">
+          Продуктов нет. <a href="/products/import">Импортировать каталог</a>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Контент-календарь{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-calendar3 me-2 text-success"></i>Контент-календарь</h4>
+  <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">
+    <i class="bi bi-plus-lg me-1"></i>Добавить в план
+  </button>
+</div>
+
+<!-- Рекомендуемые типы -->
+<div class="card p-3 mb-4">
+  <h6 class="mb-2 text-muted">Рекомендуемый цикл (7 писем × 2 дня)</h6>
+  <div class="d-flex flex-wrap gap-2">
+    {% set type_colors = {'PRODUCT':'success','ARTICLE':'primary','EXPERT':'info','NEWS':'secondary','PROGRAM':'warning','COMBO':'dark'} %}
+    {% set type_names = {'PRODUCT':'1. Продукт выпуска','ARTICLE':'2. Статья о здоровье','EXPERT':'3. Совет специалиста','NEWS':'4. Новости','PROGRAM':'5. Индив. программа','COMBO':'6. Комбо'} %}
+    {% for val, label in [('PRODUCT','Продукт выпуска'),('ARTICLE','Статья о здоровье'),('EXPERT','Совет специалиста'),('NEWS','Новости компании'),('PROGRAM','Инд. программа'),('COMBO','Комбо/сезонный')] %}
+    <span class="badge bg-{{ type_colors[val] }} px-3 py-2 fs-6">{{ label }}</span>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Запланированные -->
+<h6 class="text-muted mb-2">Запланировано</h6>
+{% if upcoming %}
+<div class="row g-2 mb-4">
+  {% set type_colors = {'PRODUCT':'success','ARTICLE':'primary','EXPERT':'info','NEWS':'secondary','PROGRAM':'warning','COMBO':'dark'} %}
+  {% set type_names = {'PRODUCT':'Продукт','ARTICLE':'Статья','EXPERT':'Специалист','NEWS':'Новости','PROGRAM':'Программа','COMBO':'Комбо'} %}
+  {% for c in upcoming %}
+  <div class="col-12 col-md-6 col-lg-4">
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="badge bg-{{ type_colors.get(c.email_type, 'secondary') }} mb-1">
+            {{ type_names.get(c.email_type, c.email_type) }}
+          </span>
+          <div class="fw-semibold">{{ c.name }}</div>
+          {% if c.product %}
+          <small class="text-muted"><i class="bi bi-box-seam me-1"></i>{{ c.product.name }}</small>
+          {% endif %}
+        </div>
+        <div class="text-end">
+          {% if c.scheduled_at %}
+          <div class="fw-semibold text-success">{{ c.scheduled_at.strftime('%d.%m') }}</div>
+          <div class="text-muted small">{{ c.scheduled_at.strftime('%H:%M') }}</div>
+          {% else %}
+          <span class="text-muted small">без даты</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="mt-2 d-flex gap-1">
+        <a href="/campaigns/{{ c.id }}/edit" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-pencil"></i>
+        </a>
+        <a href="/campaigns/{{ c.id }}/preview" class="btn btn-sm btn-outline-success">
+          <i class="bi bi-eye"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-muted mb-4">Нет запланированных кампаний.</div>
+{% endif %}
+
+<!-- Отправленные -->
+{% if past %}
+<h6 class="text-muted mb-2">Отправлено ранее</h6>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <tbody>
+        {% for c in past %}
+        <tr>
+          <td><a href="/campaigns/{{ c.id }}/stats" class="text-dark">{{ c.name }}</a></td>
+          <td><small class="text-muted">{{ c.sent_at.strftime('%d.%m.%Y') if c.sent_at else '' }}</small></td>
+          <td><span class="badge bg-success">{{ c.sent_count() }} отправлено</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Модальное окно добавления в план -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="/calendar/add">
+        <div class="modal-header">
+          <h5 class="modal-title">Добавить в план</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Название</label>
+            <input type="text" name="name" class="form-control" required placeholder="Рассылка #12">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Тип письма</label>
+            <select name="email_type" class="form-select">
+              {% for val, label in email_types %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Продукт (если нужен)</label>
+            <select name="product_id" class="form-select">
+              <option value="">— без продукта —</option>
+              {% for p in products %}
+              <option value="{{ p.id }}">{{ p.name }} (× {{ p.used_count }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Дата и время отправки</label>
+            <input type="datetime-local" name="scheduled_at" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-success">Добавить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

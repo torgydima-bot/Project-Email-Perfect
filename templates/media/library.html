@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Медиабиблиотека{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-images me-2 text-success"></i>Медиабиблиотека</h4>
+</div>
+
+<!-- Загрузка -->
+<div class="card p-3 mb-4">
+  <form method="post" action="/media/upload" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
+    <input type="file" name="files" multiple accept="image/*" class="form-control" style="max-width:320px">
+    <button class="btn btn-success" type="submit">
+      <i class="bi bi-upload me-1"></i>Загрузить
+    </button>
+    <small class="text-muted">JPG, PNG, WebP — до 16 МБ каждый</small>
+  </form>
+</div>
+
+<!-- Галерея -->
+{% if files %}
+<div class="row g-3">
+  {% for f in files %}
+  <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+    <div class="card p-2 text-center h-100">
+      <img src="/static/uploads/{{ f.filename }}" class="img-fluid rounded mb-2"
+           style="max-height:120px;object-fit:contain;" alt="{{ f.original_name }}">
+      <small class="text-muted text-truncate d-block" title="{{ f.original_name }}">{{ f.original_name }}</small>
+      <small class="text-muted">{{ f.uploaded_at.strftime('%d.%m.%y') }}</small>
+      <form method="post" action="/media/{{ f.id }}/delete" class="mt-2"
+            onsubmit="return confirm('Удалить файл?')">
+        <button class="btn btn-outline-danger btn-sm w-100">
+          <i class="bi bi-trash"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-images fs-1 d-block mb-2"></i>
+  Файлов нет. Загрузите фото продуктов.
+</div>
+{% endif %}
+{% endblock %}

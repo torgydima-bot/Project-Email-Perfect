@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Предпросмотр — {{ campaign.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-eye me-2 text-success"></i>Предпросмотр: {{ campaign.name }}</h4>
+  <div class="d-flex gap-2">
+    <a href="/campaigns/{{ campaign.id }}/edit" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Редактировать
+    </a>
+    <a href="/campaigns" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-list me-1"></i>Все кампании
+    </a>
+  </div>
+</div>
+
+<!-- Тема и статистика -->
+<div class="card p-3 mb-3">
+  <div class="row align-items-center">
+    <div class="col">
+      <div class="mb-1">
+        <strong>Тема:</strong>
+        <span class="text-success">{{ campaign.subject or '(не задана)' }}</span>
+      </div>
+      <div class="text-muted small">
+        <i class="bi bi-people me-1"></i>Получателей: <strong>{{ total }}</strong> подписанных контактов
+      </div>
+    </div>
+    <div class="col-auto">
+      <!-- Тест -->
+      <div class="input-group input-group-sm me-2 d-inline-flex" style="width:auto;">
+        <input type="email" id="testEmail" class="form-control" placeholder="test@email.com" style="width:200px">
+        <button class="btn btn-outline-success" id="btnSendTest">
+          <i class="bi bi-send me-1"></i>Тест
+        </button>
+      </div>
+      {% if campaign.status != 'done' %}
+      <form method="post" action="/campaigns/{{ campaign.id }}/send" class="d-inline"
+            onsubmit="return confirm('Отправить рассылку {{ total }} получателям?')">
+        <button type="submit" class="btn btn-success btn-sm">
+          <i class="bi bi-send-fill me-1"></i>Отправить всем ({{ total }})
+        </button>
+      </form>
+      {% else %}
+      <span class="badge bg-success px-3 py-2">Уже отправлено</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Предпросмотр письма в iframe -->
+<div class="card p-2">
+  <iframe id="preview-frame" srcdoc="{{ preview_html | e }}"></iframe>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('btnSendTest').addEventListener('click', () => {
+  const email = document.getElementById('testEmail').value.trim();
+  if (!email) { alert('Введите email'); return; }
+
+  fetch('/campaigns/{{ campaign.id }}/send-test', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'test_email=' + encodeURIComponent(email)
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'ok') alert('Тестовое письмо отправлено на ' + email);
+    else alert('Ошибка: ' + (d.error || 'неизвестно'));
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Статистика — {{ campaign.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-bar-chart me-2 text-success"></i>Статистика: {{ campaign.name }}</h4>
+  <a href="/campaigns" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Назад
+  </a>
+</div>
+
+<!-- Карточки -->
+<div class="row g-3 mb-4">
+  <div class="col-auto">
+    <div class="card px-4 py-3 text-center">
+      <div class="fs-3 fw-bold">{{ campaign.total_count() }}</div>
+      <div class="text-muted small">Всего</div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card px-4 py-3 text-center">
+      <div class="fs-3 fw-bold text-success">{{ campaign.sent_count() }}</div>
+      <div class="text-muted small">Отправлено</div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card px-4 py-3 text-center">
+      <div class="fs-3 fw-bold text-danger">{{ campaign.failed_count() }}</div>
+      <div class="text-muted small">Ошибок</div>
+    </div>
+  </div>
+  {% if campaign.sent_at %}
+  <div class="col-auto">
+    <div class="card px-4 py-3 text-center">
+      <div class="fw-bold">{{ campaign.sent_at.strftime('%d.%m.%Y') }}</div>
+      <div class="text-muted small">{{ campaign.sent_at.strftime('%H:%M') }}</div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Таблица логов -->
+{% if logs %}
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Email</th>
+          <th>Имя</th>
+          <th>Статус</th>
+          <th>Время</th>
+          <th>Ошибка</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td><small>{{ log.contact.email }}</small></td>
+          <td>{{ log.contact.first_name }} {{ log.contact.last_name }}</td>
+          <td>
+            {% if log.status == 'sent' %}
+              <span class="badge bg-success">Отправлено</span>
+            {% elif log.status == 'failed' %}
+              <span class="badge bg-danger">Ошибка</span>
+            {% else %}
+              <span class="badge bg-secondary">Ожидание</span>
+            {% endif %}
+          </td>
+          <td><small class="text-muted">{{ log.sent_at.strftime('%d.%m %H:%M') if log.sent_at else '—' }}</small></td>
+          <td><small class="text-danger">{{ log.error_msg or '' }}</small></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

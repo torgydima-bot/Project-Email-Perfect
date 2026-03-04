@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+{% block title %}{% if campaign %}Редактировать{% else %}Новая{% endif %} кампания{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">
+    <i class="bi bi-pencil-square me-2 text-success"></i>
+    {% if campaign %}Редактировать кампанию{% else %}Новая кампания{% endif %}
+  </h4>
+  <a href="/campaigns" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Назад
+  </a>
+</div>
+
+<form method="post" id="campaignForm">
+<div class="row g-4">
+
+  <!-- ЛЕВАЯ КОЛОНКА: Основные настройки -->
+  <div class="col-md-4">
+
+    <!-- Название и тип -->
+    <div class="card p-3 mb-3">
+      <h6 class="mb-3 text-muted"><i class="bi bi-gear me-1"></i>Настройки</h6>
+
+      <div class="mb-2">
+        <label class="form-label small fw-semibold">Название кампании</label>
+        <input type="text" name="name" class="form-control form-control-sm"
+               value="{{ campaign.name if campaign else '' }}" required placeholder="Для внутреннего использования">
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small fw-semibold">Тип письма</label>
+        <select name="email_type" class="form-select form-select-sm" id="emailType">
+          {% for val, label in email_types %}
+          <option value="{{ val }}" {% if campaign and campaign.email_type == val %}selected{% endif %}>
+            {{ label }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small fw-semibold d-flex justify-content-between">
+          Тема письма
+          <button type="button" class="btn btn-outline-success ai-btn" id="btnSubjectAI">
+            <i class="bi bi-stars me-1"></i>AI варианты
+          </button>
+        </label>
+        <input type="text" name="subject" class="form-control form-control-sm"
+               id="subjectField" value="{{ campaign.subject if campaign else '' }}"
+               placeholder="Тема вашего письма...">
+        <div id="subjectVariants" class="d-none mt-1"></div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small fw-semibold">Имя отправителя</label>
+        <input type="text" name="from_name" class="form-control form-control-sm"
+               value="{{ (campaign.from_name if campaign else None) or from_name }}">
+      </div>
+
+      <div class="mb-0">
+        <label class="form-label small fw-semibold">Email отправителя</label>
+        <input type="email" name="from_email" class="form-control form-control-sm"
+               value="{{ (campaign.from_email if campaign else None) or from_email }}">
+      </div>
+    </div>
+
+    <!-- Продукт -->
+    <div class="card p-3 mb-3">
+      <h6 class="mb-2 text-muted"><i class="bi bi-box-seam me-1"></i>Продукт</h6>
+      <select name="product_id" class="form-select form-select-sm mb-2" id="productSelect">
+        <option value="">— без продукта —</option>
+        {% for p in products %}
+        <option value="{{ p.id }}"
+                data-url="{{ p.url }}"
+                data-name="{{ p.name }}"
+                {% if campaign and campaign.product_id == p.id %}selected{% endif %}>
+          {{ p.name }}
+        </option>
+        {% endfor %}
+      </select>
+      <button type="button" class="btn btn-outline-success btn-sm w-100" id="btnProductAI">
+        <i class="bi bi-stars me-1"></i>Сгенерировать с AI
+      </button>
+      <div id="aiLoader" class="text-center text-muted small mt-2 d-none">
+        <span class="spinner-border spinner-border-sm me-1"></span>Генерирую...
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ПРАВАЯ КОЛОНКА: Блоки письма -->
+  <div class="col-md-8">
+
+    <!-- Вводный текст -->
+    <div class="card p-3 mb-3">
+      <h6 class="mb-2 text-muted"><i class="bi bi-chat-quote me-1"></i>Вводный текст (после приветствия)</h6>
+      <textarea name="greeting_text" class="form-control form-control-sm" rows="2"
+                id="greetingText" placeholder="Сегодня мы хотим рассказать вам о...">{{ content.greeting_text if content else '' }}</textarea>
+    </div>
+
+    <!-- Блок продукта -->
+    <div class="card p-3 mb-3">
+      <h6 class="mb-2 text-muted"><i class="bi bi-tag me-1"></i>Блок продукта</h6>
+      <div class="row g-2">
+        <div class="col-8">
+          <input type="text" name="product_name" class="form-control form-control-sm mb-2"
+                 id="productName" placeholder="Название продукта"
+                 value="{{ content.product_name if content else '' }}">
+          <textarea name="product_desc" class="form-control form-control-sm mb-2" rows="3"
+                    id="productDesc" placeholder="Описание продукта...">{{ content.product_desc if content else '' }}</textarea>
+          <input type="url" name="product_url" class="form-control form-control-sm"
+                 id="productUrl" placeholder="https://... ссылка на продукт"
+                 value="{{ content.product_url if content else '' }}">
+        </div>
+        <div class="col-4">
+          <!-- Выбор фото -->
+          <div class="border rounded p-2 text-center bg-light" style="min-height:100px;">
+            <img id="productPhotoPreview"
+                 src="{{ '/static/uploads/' + content.product_photo if content and content.product_photo else '' }}"
+                 class="product-photo-preview {% if not (content and content.product_photo) %}d-none{% endif %}">
+            <div id="noPhotoLabel" class="text-muted small {% if content and content.product_photo %}d-none{% endif %}">
+              Нет фото
+            </div>
+          </div>
+          <input type="hidden" name="product_photo" id="productPhoto"
+                 value="{{ content.product_photo if content else '' }}">
+          <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-1"
+                  data-bs-toggle="modal" data-bs-target="#mediaModal">
+            <i class="bi bi-images me-1"></i>Выбрать фото
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Блок статьи -->
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0 text-muted"><i class="bi bi-newspaper me-1"></i>Статья / полезный факт</h6>
+        <button type="button" class="btn btn-outline-success ai-btn" id="btnArticleAI">
+          <i class="bi bi-stars me-1"></i>AI статья
+        </button>
+      </div>
+      <input type="text" name="article_title" class="form-control form-control-sm mb-2"
+             id="articleTitle" placeholder="Заголовок статьи"
+             value="{{ content.article_title if content else '' }}">
+      <textarea name="article_html" class="form-control form-control-sm font-monospace" rows="5"
+                id="articleHtml" placeholder="<p>Текст статьи в HTML...</p>">{{ content.article_html if content else '' }}</textarea>
+    </div>
+
+    <!-- Блок новостей -->
+    <div class="card p-3 mb-3">
+      <h6 class="mb-2 text-muted"><i class="bi bi-megaphone me-1"></i>Новости компании (необязательно)</h6>
+      <textarea name="news_text" class="form-control form-control-sm" rows="2"
+                id="newsText" placeholder="Короткая новость или анонс...">{{ content.news_text if content else '' }}</textarea>
+    </div>
+
+    <!-- Кнопки -->
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-success">
+        <i class="bi bi-floppy me-1"></i>Сохранить и предпросмотр
+      </button>
+      <button type="submit" class="btn btn-outline-secondary">
+        <i class="bi bi-floppy me-1"></i>Только сохранить
+      </button>
+    </div>
+
+  </div>
+</div>
+</form>
+
+<!-- Модальное окно выбора фото -->
+<div class="modal fade" id="mediaModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Выбрать фото</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="mediaGrid" class="row g-2">
+          <div class="text-center text-muted py-3">Загрузка...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Загрузить медиафайлы при открытии модального окна
+document.getElementById('mediaModal').addEventListener('show.bs.modal', () => {
+  fetch('/media/api/list')
+    .then(r => r.json())
+    .then(files => {
+      const grid = document.getElementById('mediaGrid');
+      if (!files.length) { grid.innerHTML = '<div class="text-muted text-center py-3">Нет загруженных файлов. <a href="/media">Загрузить</a></div>'; return; }
+      grid.innerHTML = files.map(f => `
+        <div class="col-6 col-sm-3 col-md-2">
+          <img src="/static/uploads/${f.filename}"
+               class="img-fluid rounded media-thumb"
+               title="${f.original_name}"
+               onclick="selectPhoto('${f.filename}')"
+               style="width:100%;height:100px;object-fit:cover;cursor:pointer;">
+          <div class="small text-muted text-truncate mt-1">${f.original_name}</div>
+        </div>`).join('');
+    });
+});
+
+function selectPhoto(filename) {
+  document.getElementById('productPhoto').value = filename;
+  const preview = document.getElementById('productPhotoPreview');
+  preview.src = '/static/uploads/' + filename;
+  preview.classList.remove('d-none');
+  document.getElementById('noPhotoLabel').classList.add('d-none');
+  bootstrap.Modal.getInstance(document.getElementById('mediaModal')).hide();
+}
+
+// При выборе продукта из списка — заполнить поля
+document.getElementById('productSelect').addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  if (opt.value) {
+    document.getElementById('productName').value = opt.dataset.name || '';
+    document.getElementById('productUrl').value = opt.dataset.url || '';
+  }
+});
+
+// AI: Сгенерировать контент продукта
+document.getElementById('btnProductAI').addEventListener('click', () => {
+  const productName = document.getElementById('productName').value ||
+                      document.getElementById('productSelect').options[document.getElementById('productSelect').selectedIndex]?.dataset?.name || '';
+  const productUrl = document.getElementById('productUrl').value ||
+                     document.getElementById('productSelect').options[document.getElementById('productSelect').selectedIndex]?.dataset?.url || '';
+
+  if (!productName) { alert('Сначала выберите или введите продукт'); return; }
+
+  document.getElementById('aiLoader').classList.remove('d-none');
+  document.getElementById('btnProductAI').disabled = true;
+
+  fetch('/campaigns/ai/generate-product', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: productName, url: productUrl})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.subject) document.getElementById('subjectField').value = data.subject;
+    if (data.greeting_text) document.getElementById('greetingText').value = data.greeting_text;
+    if (data.product_desc) document.getElementById('productDesc').value = data.product_desc;
+    if (data.useful_fact) {
+      document.getElementById('articleTitle').value = 'Полезный факт';
+      document.getElementById('articleHtml').value = '<p>' + data.useful_fact.replace(/\n\n/g, '</p><p>') + '</p>';
+    }
+  })
+  .catch(e => alert('Ошибка AI: ' + e))
+  .finally(() => {
+    document.getElementById('aiLoader').classList.add('d-none');
+    document.getElementById('btnProductAI').disabled = false;
+  });
+});
+
+// AI: Сгенерировать статью
+document.getElementById('btnArticleAI').addEventListener('click', () => {
+  const topic = prompt('Тема статьи:', 'Витамин D и иммунитет');
+  if (!topic) return;
+  fetch('/campaigns/ai/generate-article', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({topic})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.article_title) document.getElementById('articleTitle').value = data.article_title;
+    if (data.article_html) document.getElementById('articleHtml').value = data.article_html;
+    if (data.subject && !document.getElementById('subjectField').value)
+      document.getElementById('subjectField').value = data.subject;
+  })
+  .catch(e => alert('Ошибка AI: ' + e));
+});
+
+// AI: Варианты темы письма
+document.getElementById('btnSubjectAI').addEventListener('click', () => {
+  const topic = document.getElementById('subjectField').value ||
+                document.getElementById('productName').value || '';
+  if (!topic) { alert('Введите тему или название продукта'); return; }
+  fetch('/campaigns/ai/subject-variants', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({topic})
+  })
+  .then(r => r.json())
+  .then(data => {
+    const div = document.getElementById('subjectVariants');
+    div.innerHTML = data.variants.map(v =>
+      `<button type="button" class="btn btn-sm btn-outline-secondary me-1 mb-1"
+               onclick="document.getElementById('subjectField').value=this.dataset.v;document.getElementById('subjectVariants').classList.add('d-none')"
+               data-v="${v}">${v}</button>`
+    ).join('');
+    div.classList.remove('d-none');
+  });
+});
+</script>
+{% endblock %}

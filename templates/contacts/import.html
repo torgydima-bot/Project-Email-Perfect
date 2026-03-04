@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Импорт контактов{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card p-4">
+      <h5 class="mb-3"><i class="bi bi-upload me-2 text-success"></i>Импорт контактов</h5>
+
+      <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+          <label class="form-label">Файл CSV или Excel (.xlsx)</label>
+          <input type="file" name="file" class="form-control" accept=".csv,.xlsx,.xls" required>
+          <div class="form-text">
+            Колонки: <strong>email</strong> (обязательно),
+            имя / first_name, фамилия / last_name, телефон / phone
+          </div>
+        </div>
+        <button type="submit" class="btn btn-success w-100">
+          <i class="bi bi-cloud-upload me-1"></i>Загрузить
+        </button>
+      </form>
+
+      <hr>
+      <a href="/contacts" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Назад к контактам
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

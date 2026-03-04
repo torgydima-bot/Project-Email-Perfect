@@ -1,0 +1,9 @@
+flask
+flask-sqlalchemy
+anthropic
+pandas
+openpyxl
+httpx
+beautifulsoup4
+python-dotenv
+itsdangerous

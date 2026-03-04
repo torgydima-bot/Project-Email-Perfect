@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{company_name}}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+<!-- Обёртка -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f0;">
+<tr><td align="center" style="padding:30px 15px;">
+
+<!-- Контейнер письма 600px -->
+<table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+
+  <!-- ШАПКА -->
+  <tr>
+    <td style="background:linear-gradient(135deg,#2d6a4f 0%,#40916c 100%);padding:30px 40px;text-align:center;">
+      <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">{{company_name}}</h1>
+      <p style="margin:6px 0 0;color:#b7e4c7;font-size:13px;letter-spacing:2px;text-transform:uppercase;">Здоровье &bull; Витамины &bull; Минералы</p>
+    </td>
+  </tr>
+
+  <!-- ПРИВЕТСТВИЕ -->
+  <tr>
+    <td style="padding:36px 40px 24px;">
+      <p style="margin:0 0 12px;font-size:20px;color:#1b4332;font-weight:600;">Здравствуйте, {{first_name}}!</p>
+      <p style="margin:0;font-size:15px;line-height:1.7;color:#495057;">{{greeting_text}}</p>
+    </td>
+  </tr>
+
+<!-- BLOCK_PRODUCT_START -->
+  <!-- ФОТО ПРОДУКТА -->
+  <tr>
+    <td style="padding:0 40px 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"
+             style="background:linear-gradient(135deg,#f8fff9 0%,#e9f5ee 100%);border-radius:12px;overflow:hidden;border:1px solid #d8f3dc;">
+        <tr>
+          <td style="padding:0;">
+            <!-- Фото -->
+            <div style="text-align:center;background:#e9f5ee;padding:24px;">
+              <img src="{{product_image_url}}"
+                   alt="{{product_name}}"
+                   style="max-width:280px;max-height:280px;object-fit:contain;border-radius:8px;display:block;margin:0 auto;"
+                   onerror="this.style.display='none'">
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px 28px 28px;">
+            <h2 style="margin:0 0 12px;font-size:20px;color:#1b4332;font-weight:700;">{{product_name}}</h2>
+            <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#495057;">{{product_desc}}</p>
+            <a href="{{product_url}}"
+               style="display:inline-block;background:#2d6a4f;color:#ffffff;text-decoration:none;
+                      padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;
+                      letter-spacing:0.3px;">
+              Узнать подробнее &rarr;
+            </a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+<!-- BLOCK_PRODUCT_END -->
+
+<!-- BLOCK_ARTICLE_START -->
+  <!-- СТАТЬЯ / ПОЛЕЗНЫЙ ФАКТ -->
+  <tr>
+    <td style="padding:0 40px 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"
+             style="background:#fff9f0;border-radius:12px;border-left:4px solid #f4a261;overflow:hidden;">
+        <tr>
+          <td style="padding:24px 28px;">
+            <p style="margin:0 0 6px;font-size:11px;color:#e76f51;font-weight:700;
+                      text-transform:uppercase;letter-spacing:1.5px;">Полезно знать</p>
+            <h3 style="margin:0 0 14px;font-size:17px;color:#212529;font-weight:700;">{{article_title}}</h3>
+            <div style="font-size:14px;line-height:1.75;color:#495057;">{{article_html}}</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+<!-- BLOCK_ARTICLE_END -->
+
+<!-- BLOCK_NEWS_START -->
+  <!-- НОВОСТИ КОМПАНИИ -->
+  <tr>
+    <td style="padding:0 40px 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"
+             style="background:#f0f4ff;border-radius:12px;overflow:hidden;">
+        <tr>
+          <td style="padding:24px 28px;">
+            <p style="margin:0 0 10px;font-size:11px;color:#4361ee;font-weight:700;
+                      text-transform:uppercase;letter-spacing:1.5px;">Новости компании</p>
+            <p style="margin:0;font-size:14px;line-height:1.7;color:#495057;">{{news_text}}</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+<!-- BLOCK_NEWS_END -->
+
+  <!-- РАЗДЕЛИТЕЛЬ -->
+  <tr>
+    <td style="padding:0 40px;">
+      <hr style="border:none;border-top:1px solid #e9ecef;margin:0;">
+    </td>
+  </tr>
+
+  <!-- ФУТЕР -->
+  <tr>
+    <td style="padding:24px 40px 32px;text-align:center;">
+      <p style="margin:0 0 8px;font-size:13px;color:#868e96;">
+        Вы получили это письмо, так как подписались на рассылку {{company_name}}.
+      </p>
+      <p style="margin:0;font-size:13px;color:#868e96;">
+        <a href="{{site_url}}" style="color:#2d6a4f;text-decoration:none;">Наш сайт</a>
+        &nbsp;&bull;&nbsp;
+        <a href="{{unsubscribe_url}}" style="color:#868e96;text-decoration:underline;">Отписаться</a>
+      </p>
+    </td>
+  </tr>
+
+</table>
+<!-- /Контейнер -->
+
+</td></tr>
+</table>
+<!-- /Обёртка -->
+
+</body>
+</html>
