@@ -10,10 +10,13 @@ def _read_df(file):
         return pd.read_excel(io.BytesIO(content))
     else:
         for enc in ("utf-8", "utf-8-sig", "cp1251", "latin-1"):
-            try:
-                return pd.read_csv(io.StringIO(content.decode(enc)))
-            except Exception:
-                continue
+            for sep in (",", ";", "\t"):
+                try:
+                    df = pd.read_csv(io.StringIO(content.decode(enc)), sep=sep)
+                    if len(df.columns) >= 1:
+                        return df
+                except Exception:
+                    continue
     return pd.DataFrame()
 
 
@@ -72,35 +75,62 @@ def import_contacts_from_file(file):
     return added, skipped, errors
 
 
+def _slug_to_name(slug):
+    return slug.replace("-", " ").replace("_", " ").title()
+
+
 def import_products_from_file(file):
-    df = _read_df(file)
+    filename = file.filename.lower()
+    content = file.read()
+
+    df = pd.DataFrame()
+
+    # Excel
+    if filename.endswith(".xlsx") or filename.endswith(".xls"):
+        df = pd.read_excel(io.BytesIO(content))
+    else:
+        # Попробуем с заголовками и без, разные разделители
+        for enc in ("utf-8", "utf-8-sig", "cp1251", "latin-1"):
+            for sep in (";", ",", "\t"):
+                try:
+                    raw = pd.read_csv(io.StringIO(content.decode(enc)), sep=sep, header=None)
+                    if len(raw.columns) >= 1 and len(raw) > 0:
+                        df = raw
+                        break
+                except Exception:
+                    continue
+            if not df.empty:
+                break
+
     if df.empty:
-        return 0, 0
-
-    name_col = _normalize_col(df, "name", "название", "product", "продукт", "наименование")
-    url_col = _normalize_col(df, "url", "link", "ссылка", "href")
-
-    if not name_col:
         return 0, 0
 
     added = skipped = 0
 
     for _, row in df.iterrows():
         try:
-            name = str(row[name_col]).strip()
-            if not name or name == "nan":
+            raw_name = str(row.iloc[0]).strip()
+            if not raw_name or raw_name == "nan":
                 continue
+
+            # Если выглядит как slug (нет пробелов, есть дефисы) — конвертируем
+            if " " not in raw_name and ("-" in raw_name or raw_name.islower()):
+                name = _slug_to_name(raw_name)
+            else:
+                name = raw_name
+
+            # URL — вторая колонка если есть
+            url = ""
+            if len(row) > 1:
+                url = str(row.iloc[1]).strip()
+                if url == "nan" or not url.startswith("http"):
+                    url = ""
 
             if Product.query.filter_by(name=name).first():
                 skipped += 1
                 continue
 
-            url = str(row[url_col]).strip() if url_col else ""
-            if url == "nan":
-                url = ""
-
-            product = Product(name=name, url=url)
-            db.session.add(product)
+            db.session.add(Product(name=name, url=url))
             added += 1
         except Exception:
             skipped += 1
