@@ -10,6 +10,21 @@ from db.models import db, Contact, Campaign, CampaignLog
 from services.email_builder import build_email_html
 
 
+def _connect_smtp():
+    """
+    Подключается к SMTP.
+    Порт 465 → SSL (UniSender, Mail.ru).
+    Порт 587 → STARTTLS (Yandex, Gmail).
+    """
+    if config.SMTP_PORT == 465:
+        server = smtplib.SMTP_SSL(config.SMTP_HOST, config.SMTP_PORT)
+    else:
+        server = smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT)
+        server.starttls()
+    server.login(config.SMTP_USER, config.SMTP_PASS)
+    return server
+
+
 def _unsubscribe_url(contact_id: int) -> str:
     s = URLSafeSerializer(config.SECRET_KEY)
     token = s.dumps(contact_id)
@@ -43,9 +58,7 @@ def send_campaign(campaign_id: int):
     from_email = campaign.from_email or config.FROM_EMAIL
 
     try:
-        server = smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT)
-        server.starttls()
-        server.login(config.SMTP_USER, config.SMTP_PASS)
+        server = _connect_smtp()
 
         batch = []
         for contact in contacts:
@@ -143,9 +156,7 @@ def send_test_email(campaign_id: int, test_email: str):
     from_email = campaign.from_email or config.FROM_EMAIL
 
     try:
-        server = smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT)
-        server.starttls()
-        server.login(config.SMTP_USER, config.SMTP_PASS)
+        server = _connect_smtp()
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"[ТЕСТ] {campaign.subject}"
