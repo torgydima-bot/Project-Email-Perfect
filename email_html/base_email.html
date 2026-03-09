@@ -4,51 +4,63 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{company_name}}</title>
+<style>
+@media only screen and (max-width: 620px) {
+  .wrap-pad { padding: 10px 8px !important; }
+  .sec-pad { padding: 20px 16px 20px !important; }
+  .blk-pad { padding: 0 12px 20px !important; }
+  .inn-pad { padding: 16px 16px 20px !important; }
+  .hdr-pad { padding: 24px 20px !important; }
+  .hdr-h1  { font-size: 20px !important; }
+  .ftr-pad { padding: 16px 16px 24px !important; }
+}
+</style>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f4f0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
 
+<!-- Preheader: скрытый текст предпросмотра (показывается в почте рядом с темой) -->
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#f4f4f0;">{{preheader}}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+
 <!-- Обёртка -->
 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f0;">
-<tr><td align="center" style="padding:30px 15px;">
+<tr><td align="center" class="wrap-pad" style="padding:20px 8px;">
 
 <!-- Контейнер письма 600px -->
 <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
 
   <!-- ШАПКА -->
   <tr>
-    <td style="background:linear-gradient(135deg,#2d6a4f 0%,#40916c 100%);padding:30px 40px;text-align:center;">
-      <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">{{company_name}}</h1>
-      <p style="margin:6px 0 0;color:#b7e4c7;font-size:13px;letter-spacing:2px;text-transform:uppercase;">Здоровье &bull; Витамины &bull; Минералы</p>
+    <td background="{{header_bg_image_url}}" class="hdr-pad" style="{{header_bg_style}}padding:32px 24px;text-align:center;">
+      <h1 class="hdr-h1" style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:1px;text-shadow:0 2px 6px rgba(0,0,0,0.5);">{{company_name}}</h1>
+      <p style="margin:8px 0 0;color:#e8f5e9;font-size:13px;letter-spacing:2px;text-transform:uppercase;text-shadow:0 1px 4px rgba(0,0,0,0.5);">Здоровье &bull; Витамины &bull; Минералы</p>
     </td>
   </tr>
 
   <!-- ПРИВЕТСТВИЕ -->
   <tr>
-    <td style="padding:36px 40px 24px;">
+    <td class="sec-pad" style="padding:28px 24px 20px;">
       <p style="margin:0 0 12px;font-size:20px;color:#1b4332;font-weight:600;">Здравствуйте, {{first_name}}!</p>
       <p style="margin:0;font-size:15px;line-height:1.7;color:#495057;">{{greeting_text}}</p>
     </td>
   </tr>
 
 <!-- BLOCK_PRODUCT_START -->
-  <!-- ФОТО ПРОДУКТА -->
+  <!-- БЛОК ПРОДУКТА -->
   <tr>
-    <td style="padding:0 40px 30px;">
+    <td class="blk-pad" style="padding:0 24px 24px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0"
              style="background:linear-gradient(135deg,#f8fff9 0%,#e9f5ee 100%);border-radius:12px;overflow:hidden;border:1px solid #d8f3dc;">
         <tr>
-          <td style="padding:0;">
-            <!-- Фото -->
-            <div style="text-align:center;background:#e9f5ee;padding:24px;">
-              <img src="{{product_image_url}}"
-                   alt="{{product_name}}"
-                   style="max-width:280px;max-height:280px;object-fit:contain;border-radius:8px;display:block;margin:0 auto;"
-                   onerror="this.style.display='none'">
-            </div>
+          <td style="padding:16px 16px 0;text-align:center;">
+            <img src="{{product_image_url}}"
+                 alt="{{product_name}}"
+                 style="max-width:100%;max-height:260px;height:auto;display:block;margin:0 auto;
+                        border-radius:16px;"
+                 onerror="this.style.display='none'">
           </td>
         </tr>
         <tr>
-          <td style="padding:24px 28px 28px;">
+          <td class="inn-pad" style="padding:20px 20px 24px;">
             <h2 style="margin:0 0 12px;font-size:20px;color:#1b4332;font-weight:700;">{{product_name}}</h2>
             <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#495057;">{{product_desc}}</p>
             <a href="{{product_url}}"
@@ -67,14 +79,14 @@
 <!-- BLOCK_ARTICLE_START -->
   <!-- СТАТЬЯ / ПОЛЕЗНЫЙ ФАКТ -->
   <tr>
-    <td style="padding:0 40px 30px;">
+    <td class="blk-pad" style="padding:0 24px 24px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0"
              style="background:#fff9f0;border-radius:12px;border-left:4px solid #f4a261;overflow:hidden;">
+        {{article_image_block}}
         <tr>
-          <td style="padding:24px 28px;">
-            <p style="margin:0 0 6px;font-size:11px;color:#e76f51;font-weight:700;
+          <td class="inn-pad" style="padding:20px 20px;">
+            <p style="margin:0 0 14px;font-size:17px;color:#e76f51;font-weight:700;
                       text-transform:uppercase;letter-spacing:1.5px;">Полезно знать</p>
-            <h3 style="margin:0 0 14px;font-size:17px;color:#212529;font-weight:700;">{{article_title}}</h3>
             <div style="font-size:14px;line-height:1.75;color:#495057;">{{article_html}}</div>
           </td>
         </tr>
@@ -86,11 +98,11 @@
 <!-- BLOCK_NEWS_START -->
   <!-- НОВОСТИ КОМПАНИИ -->
   <tr>
-    <td style="padding:0 40px 30px;">
+    <td class="blk-pad" style="padding:0 24px 24px;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0"
              style="background:#f0f4ff;border-radius:12px;overflow:hidden;">
         <tr>
-          <td style="padding:24px 28px;">
+          <td class="inn-pad" style="padding:20px 20px;">
             <p style="margin:0 0 10px;font-size:11px;color:#4361ee;font-weight:700;
                       text-transform:uppercase;letter-spacing:1.5px;">Новости компании</p>
             <p style="margin:0;font-size:14px;line-height:1.7;color:#495057;">{{news_text}}</p>
@@ -101,16 +113,22 @@
   </tr>
 <!-- BLOCK_NEWS_END -->
 
+  <!-- МЕНЕДЖЕР / TELEGRAM -->
+  {{manager_block}}
+
+  <!-- TELEGRAM КАНАЛ -->
+  {{telegram_channel_block}}
+
   <!-- РАЗДЕЛИТЕЛЬ -->
   <tr>
-    <td style="padding:0 40px;">
+    <td style="padding:0 24px 4px;">
       <hr style="border:none;border-top:1px solid #e9ecef;margin:0;">
     </td>
   </tr>
 
   <!-- ФУТЕР -->
   <tr>
-    <td style="padding:24px 40px 32px;text-align:center;">
+    <td class="ftr-pad" style="padding:16px 24px 28px;text-align:center;">
       <p style="margin:0 0 8px;font-size:13px;color:#868e96;">
         Вы получили это письмо, так как подписались на рассылку {{company_name}}.
       </p>
@@ -129,5 +147,6 @@
 </table>
 <!-- /Обёртка -->
 
+{{tracking_pixel}}
 </body>
 </html>

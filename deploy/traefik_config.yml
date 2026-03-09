@@ -1,0 +1,29 @@
+http:
+  routers:
+    email-perfect-static:
+      rule: "Host(`sniquatoozoosid.beget.app`) && PathPrefix(`/ep-static/`)"
+      entryPoints:
+        - websecure
+      service: email-perfect-nginx
+      tls:
+        certResolver: mytlschallenge
+      priority: 200
+    email-perfect-app:
+      rule: "Host(`sniquatoozoosid.beget.app`) && (PathPrefix(`/track/`) || PathPrefix(`/contacts/unsubscribe`))"
+      entryPoints:
+        - websecure
+      service: email-perfect-flask
+      tls:
+        certResolver: mytlschallenge
+      priority: 100
+  services:
+    email-perfect-nginx:
+      loadBalancer:
+        servers:
+          - url: "http://172.17.0.1:8080"
+        passHostHeader: false
+    email-perfect-flask:
+      loadBalancer:
+        servers:
+          - url: "http://172.17.0.1:5001"
+        passHostHeader: false

@@ -1,5 +1,6 @@
 import smtplib
 import time
+import re
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
@@ -31,10 +32,11 @@ def _unsubscribe_url(contact_id: int) -> str:
     return f"{config.SITE_URL}/contacts/unsubscribe?token={token}"
 
 
-def send_campaign(campaign_id: int):
+def send_campaign(campaign_id: int, gender_filter: str = None):
     """
     Отправляет кампанию всем подписанным контактам.
     Батчи по 50 писем, пауза 1 сек между батчами.
+    gender_filter: 'm' или 'f' — отправить только указанному полу.
     """
     campaign = Campaign.query.get(campaign_id)
     if not campaign:
@@ -43,7 +45,10 @@ def send_campaign(campaign_id: int):
     campaign.status = "sending"
     db.session.commit()
 
-    contacts = Contact.query.filter_by(subscribed=True).all()
+    query = Contact.query.filter_by(subscribed=True)
+    if gender_filter in ("m", "f"):
+        query = query.filter_by(gender=gender_filter)
+    contacts = query.all()
 
     # Уже отправленным — пропускаем
     already_sent = {
@@ -105,8 +110,11 @@ def _send_batch(server, campaign, contacts, from_name, from_email):
             msg["Subject"] = subject
             msg["From"] = f"{from_name} <{from_email}>"
             msg["To"] = contact.email
-            msg["List-Unsubscribe"] = f"<{_unsubscribe_url(contact.id)}>"
+            unsub_url = _unsubscribe_url(contact.id)
+            msg["List-Unsubscribe"] = f"<{unsub_url}>"
+            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
 
+            msg.attach(MIMEText(_html_to_plain(html), "plain", "utf-8"))
             msg.attach(MIMEText(html, "html", "utf-8"))
             server.sendmail(from_email, contact.email, msg.as_string())
 
@@ -115,6 +123,7 @@ def _send_batch(server, campaign, contacts, from_name, from_email):
                 contact_id=contact.id,
                 status="sent",
                 sent_at=datetime.utcnow(),
+                contact_name=f"{contact.first_name} {contact.last_name}".strip(),
             )
             db.session.add(log)
             sent += 1
@@ -124,6 +133,7 @@ def _send_batch(server, campaign, contacts, from_name, from_email):
                 contact_id=contact.id,
                 status="failed",
                 error_msg=str(e)[:500],
+                contact_name=f"{contact.first_name} {contact.last_name}".strip(),
             )
             db.session.add(log)
             failed += 1
@@ -132,40 +142,91 @@ def _send_batch(server, campaign, contacts, from_name, from_email):
     return sent, failed
 
 
+def _html_to_plain(html: str) -> str:
+    """Грубая конвертация HTML в plain text для альтернативной части письма."""
+    text = re.sub(r"<br\s*/?>", "\n", html, flags=re.IGNORECASE)
+    text = re.sub(r"</p>|</tr>|</div>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"&nbsp;", " ", text)
+    text = re.sub(r"&bull;", "•", text)
+    text = re.sub(r"&[a-z]+;", "", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def _personalize(text: str, contact: Contact) -> str:
-    return text.replace("{{first_name}}", contact.first_name or "") \
-               .replace("{{last_name}}", contact.last_name or "") \
-               .replace("{{email}}", contact.email or "")
+    first = contact.first_name or ""
+    last = contact.last_name or ""
+    email = contact.email or ""
+    return text \
+        .replace("{{first_name}}", first).replace("{first_name}", first) \
+        .replace("{{last_name}}", last).replace("{last_name}", last) \
+        .replace("{{email}}", email).replace("{email}", email)
 
 
-def send_test_email(campaign_id: int, test_email: str):
-    """Отправляет тестовое письмо на указанный адрес."""
+def send_test_email(campaign_id: int, test_emails: str, test_name: str = ""):
+    """Отправляет тестовое письмо на один или несколько адресов (через запятую)."""
     campaign = Campaign.query.get(campaign_id)
     if not campaign:
         return {"error": "Campaign not found"}
 
-    # Создаём временный контакт для предпросмотра
-    fake_contact = Contact(
-        email=test_email,
-        first_name="Тест",
-        last_name="Тестов",
-    )
-    html = build_email_html(campaign, fake_contact)
+    emails = [e.strip() for e in test_emails.split(",") if e.strip()]
+    if not emails:
+        return {"error": "Не указаны адреса"}
 
     from_name = campaign.from_name or config.FROM_NAME
     from_email = campaign.from_email or config.FROM_EMAIL
+    parts = test_name.split(maxsplit=1) if test_name else []
 
+    sent = 0
+    errors = []
     try:
         server = _connect_smtp()
+        for addr in emails:
+            # Находим или создаём контакт (subscribed=False — не попадёт в рассылки)
+            contact = Contact.query.filter_by(email=addr).first()
+            if not contact:
+                contact = Contact(
+                    email=addr,
+                    first_name=parts[0] if parts else "",
+                    last_name=parts[1] if len(parts) > 1 else "",
+                    source="test",
+                    subscribed=False,
+                )
+                db.session.add(contact)
+                db.session.flush()  # получаем contact.id до commit
+            first = parts[0] if parts else contact.first_name or ""
+            last = parts[1] if len(parts) > 1 else contact.last_name or ""
 
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"[ТЕСТ] {campaign.subject}"
-        msg["From"] = f"{from_name} <{from_email}>"
-        msg["To"] = test_email
-        msg.attach(MIMEText(html, "html", "utf-8"))
+            build_contact = Contact(id=contact.id, email=addr, first_name=first, last_name=last)
+            html = build_email_html(campaign, build_contact)
+            subject = _personalize(campaign.subject or "", build_contact)
 
-        server.sendmail(from_email, test_email, msg.as_string())
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = f"{from_name} <{from_email}>"
+            msg["To"] = addr
+            msg.attach(MIMEText(_html_to_plain(html), "plain", "utf-8"))
+            msg.attach(MIMEText(html, "html", "utf-8"))
+            try:
+                server.sendmail(from_email, addr, msg.as_string())
+                log = CampaignLog(
+                    campaign_id=campaign.id,
+                    contact_id=contact.id,
+                    status="test",
+                    sent_at=datetime.utcnow(),
+                    contact_name=f"{first} {last}".strip(),
+                )
+                db.session.add(log)
+                sent += 1
+            except Exception as e:
+                errors.append(f"{addr}: {e}")
+        db.session.commit()
         server.quit()
-        return {"status": "ok"}
     except Exception as e:
+        db.session.rollback()
         return {"error": str(e)}
+
+    if errors:
+        return {"status": "partial", "sent": sent, "errors": errors}
+    return {"status": "ok", "sent": sent}

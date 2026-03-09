@@ -12,7 +12,8 @@ class Contact(db.Model):
     first_name = db.Column(db.String(100), default="")
     last_name = db.Column(db.String(100), default="")
     phone = db.Column(db.String(50), default="")
-    source = db.Column(db.String(50), default="manual")  # manual | tilda
+    gender = db.Column(db.String(1), default="")  # m | f | "" (неизвестно)
+    source = db.Column(db.String(50), default="manual")  # manual | tilda | test
     subscribed = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -60,7 +61,10 @@ class Campaign(db.Model):
     sent_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    logs = db.relationship("CampaignLog", back_populates="campaign", lazy="dynamic")
+    logs = db.relationship("CampaignLog", back_populates="campaign", lazy="dynamic",
+                           cascade="all, delete-orphan")
+    opens = db.relationship("EmailOpen", back_populates="campaign", lazy="dynamic",
+                            cascade="all, delete-orphan")
 
     def sent_count(self):
         return self.logs.filter_by(status="sent").count()
@@ -70,6 +74,21 @@ class Campaign(db.Model):
 
     def total_count(self):
         return self.logs.count()
+
+    def open_count(self):
+        return self.opens.count()
+
+    def unique_open_count(self):
+        from sqlalchemy import func
+        return db.session.query(func.count(func.distinct(EmailOpen.contact_id)))\
+            .filter(EmailOpen.campaign_id == self.id).scalar() or 0
+
+    def device_stats(self):
+        from sqlalchemy import func
+        rows = db.session.query(EmailOpen.device_type, func.count(EmailOpen.id))\
+            .filter(EmailOpen.campaign_id == self.id)\
+            .group_by(EmailOpen.device_type).all()
+        return {r[0]: r[1] for r in rows}
 
 
 class CampaignLog(db.Model):
@@ -81,9 +100,25 @@ class CampaignLog(db.Model):
     status = db.Column(db.String(20), default="pending")  # pending | sent | failed
     error_msg = db.Column(db.Text, default="")
     sent_at = db.Column(db.DateTime, nullable=True)
+    contact_name = db.Column(db.String(200), default="")
 
     campaign = db.relationship("Campaign", back_populates="logs")
     contact = db.relationship("Contact", back_populates="logs")
+
+
+class EmailOpen(db.Model):
+    __tablename__ = "email_opens"
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey("campaigns.id"), nullable=False)
+    contact_id = db.Column(db.Integer, db.ForeignKey("contacts.id"), nullable=True)
+    opened_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_agent = db.Column(db.String(500), default="")
+    device_type = db.Column(db.String(20), default="unknown")  # desktop|mobile|tablet|bot
+    ip_address = db.Column(db.String(50), default="")
+
+    campaign = db.relationship("Campaign", back_populates="opens")
+    contact = db.relationship("Contact", backref=db.backref("opens", lazy="dynamic"))
 
 
 class MediaFile(db.Model):

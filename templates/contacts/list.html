@@ -4,9 +4,14 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0"><i class="bi bi-people me-2 text-success"></i>Контакты</h4>
-  <a href="/contacts/import" class="btn btn-success btn-sm">
-    <i class="bi bi-upload me-1"></i>Импорт CSV
-  </a>
+  <div class="d-flex gap-2">
+    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addContactModal">
+      <i class="bi bi-plus-lg me-1"></i>Добавить
+    </button>
+    <a href="/contacts/import" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-upload me-1"></i>Импорт CSV
+    </a>
+  </div>
 </div>
 
 <!-- Статистика -->
@@ -49,6 +54,7 @@
         <tr>
           <th>Email</th>
           <th>Имя</th>
+          <th>Пол</th>
           <th>Телефон</th>
           <th>Источник</th>
           <th>Статус</th>
@@ -58,9 +64,14 @@
       </thead>
       <tbody>
         {% for c in contacts %}
-        <tr>
+        <tr id="row-{{ c.id }}">
           <td><small>{{ c.email }}</small></td>
-          <td>{{ c.first_name }} {{ c.last_name }}</td>
+          <td id="name-{{ c.id }}">{{ c.first_name }} {{ c.last_name }}</td>
+          <td id="gender-{{ c.id }}">
+            {% if c.gender == 'f' %}<i class="bi bi-gender-female text-danger" title="Женский"></i>
+            {% elif c.gender == 'm' %}<i class="bi bi-gender-male text-primary" title="Мужской"></i>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
           <td><small class="text-muted">{{ c.phone or '—' }}</small></td>
           <td>
             {% if c.source == 'tilda' %}
@@ -78,6 +89,10 @@
           </td>
           <td><small class="text-muted">{{ c.created_at.strftime('%d.%m.%Y') }}</small></td>
           <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary" title="Редактировать"
+                    onclick="openEdit({{ c.id }}, '{{ c.first_name|e }}', '{{ c.last_name|e }}', '{{ c.phone|e }}', '{{ c.gender|e }}')">
+              <i class="bi bi-pencil"></i>
+            </button>
             <form method="post" action="/contacts/{{ c.id }}/toggle-subscribe" class="d-inline">
               <button class="btn btn-sm {% if c.subscribed %}btn-outline-secondary{% else %}btn-outline-success{% endif %}"
                       title="{% if c.subscribed %}Отписать{% else %}Подписать{% endif %}">
@@ -93,10 +108,131 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center text-muted py-4">Контакты не найдены</td></tr>
+        <tr><td colspan="8" class="text-center text-muted py-4">Контакты не найдены</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+<!-- Модальное окно редактирования -->
+<div class="modal fade" id="editContactModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title"><i class="bi bi-pencil me-1"></i>Редактировать контакт</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editContactId">
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Имя</label>
+          <input type="text" id="editFirstName" class="form-control form-control-sm" placeholder="Имя">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Фамилия</label>
+          <input type="text" id="editLastName" class="form-control form-control-sm" placeholder="Фамилия (необязательно)">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Пол</label>
+          <select id="editGender" class="form-select form-select-sm">
+            <option value="">Не указан</option>
+            <option value="m">Мужской</option>
+            <option value="f">Женский</option>
+          </select>
+        </div>
+        <div class="mb-0">
+          <label class="form-label small fw-semibold">Телефон</label>
+          <input type="text" id="editPhone" class="form-control form-control-sm" placeholder="+7...">
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-sm btn-success" onclick="saveContact()">
+          <i class="bi bi-check-lg me-1"></i>Сохранить
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно добавления -->
+<div class="modal fade" id="addContactModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title"><i class="bi bi-plus-lg me-1"></i>Новый контакт</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/contacts/add">
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Email *</label>
+            <input type="email" name="email" class="form-control form-control-sm" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Имя</label>
+            <input type="text" name="first_name" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Фамилия</label>
+            <input type="text" name="last_name" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Пол</label>
+            <select name="gender" class="form-select form-select-sm">
+              <option value="">Не указан</option>
+              <option value="m">Мужской</option>
+              <option value="f">Женский</option>
+            </select>
+          </div>
+          <div class="mb-0">
+            <label class="form-label small fw-semibold">Телефон</label>
+            <input type="text" name="phone" class="form-control form-control-sm">
+          </div>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-sm btn-success">
+            <i class="bi bi-check-lg me-1"></i>Добавить
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function openEdit(id, firstName, lastName, phone, gender) {
+  document.getElementById('editContactId').value = id;
+  document.getElementById('editFirstName').value = firstName;
+  document.getElementById('editLastName').value = lastName;
+  document.getElementById('editPhone').value = phone;
+  document.getElementById('editGender').value = gender || '';
+  new bootstrap.Modal(document.getElementById('editContactModal')).show();
+}
+
+function saveContact() {
+  const id = document.getElementById('editContactId').value;
+  const data = new FormData();
+  data.append('first_name', document.getElementById('editFirstName').value);
+  data.append('last_name', document.getElementById('editLastName').value);
+  data.append('phone', document.getElementById('editPhone').value);
+  data.append('gender', document.getElementById('editGender').value);
+
+  fetch(`/contacts/${id}/edit`, {method: 'POST', body: data})
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === 'ok') {
+        document.getElementById(`name-${id}`).textContent =
+          (d.first_name + ' ' + d.last_name).trim();
+        const genderEl = document.getElementById(`gender-${id}`);
+        if (d.gender === 'f') genderEl.innerHTML = '<i class="bi bi-gender-female text-danger" title="Женский"></i>';
+        else if (d.gender === 'm') genderEl.innerHTML = '<i class="bi bi-gender-male text-primary" title="Мужской"></i>';
+        else genderEl.innerHTML = '<span class="text-muted">—</span>';
+        bootstrap.Modal.getInstance(document.getElementById('editContactModal')).hide();
+      }
+    });
+}
+</script>
 {% endblock %}

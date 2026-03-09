@@ -50,6 +50,23 @@ def delete_file(file_id):
     return redirect(url_for("media.library"))
 
 
+@media_bp.route("/upload-single", methods=["POST"])
+def upload_single():
+    """JSON-загрузка одного файла (для JS fetch в конструкторе)."""
+    file = request.files.get("file")
+    if not file or not allowed_file(file.filename):
+        return jsonify({"error": "Недопустимый файл"}), 400
+    original = secure_filename(file.filename)
+    ext = original.rsplit(".", 1)[1].lower()
+    unique_name = f"{uuid.uuid4().hex}.{ext}"
+    save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], unique_name)
+    file.save(save_path)
+    media = MediaFile(filename=unique_name, original_name=original)
+    db.session.add(media)
+    db.session.commit()
+    return jsonify({"filename": unique_name})
+
+
 @media_bp.route("/api/list")
 def api_list():
     """JSON список файлов для выбора в конструкторе кампании."""

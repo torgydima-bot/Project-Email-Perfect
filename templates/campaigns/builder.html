@@ -74,11 +74,13 @@
         <option value="{{ p.id }}"
                 data-url="{{ p.url }}"
                 data-name="{{ p.name }}"
+                data-photo="{{ p.photo_filename or '' }}"
                 {% if campaign and campaign.product_id == p.id %}selected{% endif %}>
           {{ p.name }}
         </option>
         {% endfor %}
       </select>
+      <input type="hidden" name="product_context" id="productContext" value="{{ content.product_context if content else '' }}">
       <button type="button" class="btn btn-outline-success btn-sm w-100" id="btnProductAI">
         <i class="bi bi-stars me-1"></i>Сгенерировать с AI
       </button>
@@ -125,10 +127,21 @@
           </div>
           <input type="hidden" name="product_photo" id="productPhoto"
                  value="{{ content.product_photo if content else '' }}">
+          <input type="file" id="productPhotoUpload" accept="image/*" class="d-none">
+          <button type="button" class="btn btn-outline-primary btn-sm w-100 mt-1"
+                  onclick="document.getElementById('productPhotoUpload').click()">
+            <i class="bi bi-upload me-1"></i>Загрузить фото
+          </button>
           <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-1"
                   data-bs-toggle="modal" data-bs-target="#mediaModal">
-            <i class="bi bi-images me-1"></i>Выбрать фото
+            <i class="bi bi-images me-1"></i>Из библиотеки
           </button>
+          <button type="button" class="btn btn-outline-success btn-sm w-100 mt-1" id="btnPhotoAI">
+            <i class="bi bi-stars me-1"></i>AI фото
+          </button>
+          <div id="photoAiLoader" class="text-center text-muted small mt-1 d-none">
+            <span class="spinner-border spinner-border-sm"></span> AI генерирует ~1-2 мин...
+          </div>
         </div>
       </div>
     </div>
@@ -146,6 +159,29 @@
              value="{{ content.article_title if content else '' }}">
       <textarea name="article_html" class="form-control form-control-sm font-monospace" rows="5"
                 id="articleHtml" placeholder="<p>Текст статьи в HTML...</p>">{{ content.article_html if content else '' }}</textarea>
+      <!-- Фото статьи -->
+      <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+        <div class="border rounded p-1 bg-light" style="width:80px;height:50px;overflow:hidden;flex-shrink:0;">
+          {% set art_img = content.article_image if content and content.article_image else '' %}
+          <img id="articlePhotoPreview"
+               src="{{ art_img if art_img.startswith('http') else ('/static/uploads/' + art_img if art_img else '') }}"
+               class="{% if not art_img %}d-none{% endif %}"
+               style="width:100%;height:100%;object-fit:cover;">
+          <div id="noArticlePhotoLabel" class="text-muted small text-center {% if art_img %}d-none{% endif %}" style="line-height:50px;font-size:10px;">Нет фото</div>
+        </div>
+        <input type="hidden" name="article_image" id="articleImage"
+               value="{{ content.article_image if content else '' }}">
+        <button type="button" class="btn btn-outline-success btn-sm" id="btnArticlePhotoAI">
+          <i class="bi bi-stars me-1"></i>AI фото
+        </button>
+        <label class="btn btn-outline-secondary btn-sm mb-0" style="cursor:pointer;">
+          <i class="bi bi-upload me-1"></i>Загрузить
+          <input type="file" id="articlePhotoUpload" accept="image/*" style="display:none;">
+        </label>
+        <div id="articlePhotoLoader" class="text-muted small d-none">
+          <span class="spinner-border spinner-border-sm"></span>
+        </div>
+      </div>
     </div>
 
     <!-- Блок новостей -->
@@ -218,12 +254,20 @@ function selectPhoto(filename) {
   bootstrap.Modal.getInstance(document.getElementById('mediaModal')).hide();
 }
 
-// При выборе продукта из списка — заполнить поля
+// При выборе продукта из списка — заполнить поля + фото
 document.getElementById('productSelect').addEventListener('change', function() {
   const opt = this.options[this.selectedIndex];
   if (opt.value) {
     document.getElementById('productName').value = opt.dataset.name || '';
     document.getElementById('productUrl').value = opt.dataset.url || '';
+    const photo = opt.dataset.photo || '';
+    if (photo) {
+      document.getElementById('productPhoto').value = photo;
+      const preview = document.getElementById('productPhotoPreview');
+      preview.src = '/static/uploads/' + photo;
+      preview.classList.remove('d-none');
+      document.getElementById('noPhotoLabel').classList.add('d-none');
+    }
   }
 });
 
@@ -239,16 +283,24 @@ document.getElementById('btnProductAI').addEventListener('click', () => {
   document.getElementById('aiLoader').classList.remove('d-none');
   document.getElementById('btnProductAI').disabled = true;
 
+  const productContext = document.getElementById('productContext').value;
   fetch('/campaigns/ai/generate-product', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({name: productName, url: productUrl})
+    body: JSON.stringify({name: productName, url: productUrl, context: productContext})
   })
   .then(r => r.json())
   .then(data => {
     if (data.subject) document.getElementById('subjectField').value = data.subject;
     if (data.greeting_text) document.getElementById('greetingText').value = data.greeting_text;
     if (data.product_desc) document.getElementById('productDesc').value = data.product_desc;
+    if (data.product_image_url) {
+      document.getElementById('productPhoto').value = data.product_image_url;
+      const prev = document.getElementById('productPhotoPreview');
+      prev.src = data.product_image_url;
+      prev.classList.remove('d-none');
+      document.getElementById('noPhotoLabel').classList.add('d-none');
+    }
     if (data.useful_fact) {
       document.getElementById('articleTitle').value = 'Полезный факт';
       document.getElementById('articleHtml').value = '<p>' + data.useful_fact.replace(/\n\n/g, '</p><p>') + '</p>';
@@ -278,6 +330,114 @@ document.getElementById('btnArticleAI').addEventListener('click', () => {
       document.getElementById('subjectField').value = data.subject;
   })
   .catch(e => alert('Ошибка AI: ' + e));
+});
+
+// AI: Сгенерировать фото продукта через Pollinations.ai
+document.getElementById('btnPhotoAI').addEventListener('click', () => {
+  const productName = document.getElementById('productName').value ||
+                      document.getElementById('productSelect').options[document.getElementById('productSelect').selectedIndex]?.dataset?.name || '';
+  if (!productName) { alert('Сначала введите или выберите продукт'); return; }
+
+  document.getElementById('photoAiLoader').classList.remove('d-none');
+  document.getElementById('btnPhotoAI').disabled = true;
+
+  fetch('/campaigns/ai/generate-photo', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: productName})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.filename) {
+      document.getElementById('productPhoto').value = data.filename;
+      const preview = document.getElementById('productPhotoPreview');
+      preview.src = data.filename.startsWith('http') ? data.filename : '/static/uploads/' + data.filename;
+      preview.classList.remove('d-none');
+      document.getElementById('noPhotoLabel').classList.add('d-none');
+    } else {
+      alert('Ошибка генерации фото: ' + (data.error || 'неизвестная ошибка'));
+    }
+  })
+  .catch(e => alert('Ошибка: ' + e))
+  .finally(() => {
+    document.getElementById('photoAiLoader').classList.add('d-none');
+    document.getElementById('btnPhotoAI').disabled = false;
+  });
+});
+
+// AI: Фото для статьи
+document.getElementById('btnArticlePhotoAI').addEventListener('click', () => {
+  const topic = document.getElementById('articleTitle').value ||
+                document.getElementById('productName').value || 'health wellness';
+  const articleText = document.getElementById('articleHtml').value.replace(/<[^>]+>/g, ' ').slice(0, 400);
+  document.getElementById('articlePhotoLoader').classList.remove('d-none');
+  document.getElementById('btnArticlePhotoAI').disabled = true;
+  fetch('/campaigns/ai/generate-photo', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({topic: topic, article_text: articleText})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.filename) {
+      document.getElementById('articleImage').value = data.filename;
+      const preview = document.getElementById('articlePhotoPreview');
+      preview.src = data.filename.startsWith('http') ? data.filename : '/static/uploads/' + data.filename;
+      preview.classList.remove('d-none');
+      document.getElementById('noArticlePhotoLabel').classList.add('d-none');
+    } else {
+      alert('Ошибка: ' + (data.error || 'не удалось получить фото'));
+    }
+  })
+  .catch(e => alert('Ошибка: ' + e))
+  .finally(() => {
+    document.getElementById('articlePhotoLoader').classList.add('d-none');
+    document.getElementById('btnArticlePhotoAI').disabled = false;
+  });
+});
+
+// Загрузка своего фото продукта
+document.getElementById('productPhotoUpload').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  fetch('/media/upload-single', {method: 'POST', body: formData})
+    .then(r => r.json())
+    .then(data => {
+      if (data.filename) {
+        document.getElementById('productPhoto').value = data.filename;
+        const preview = document.getElementById('productPhotoPreview');
+        preview.src = '/static/uploads/' + data.filename;
+        preview.classList.remove('d-none');
+        document.getElementById('noPhotoLabel').classList.add('d-none');
+      } else {
+        alert('Ошибка загрузки: ' + (data.error || 'неизвестно'));
+      }
+    })
+    .catch(e => alert('Ошибка: ' + e));
+});
+
+// Загрузка своего фото для статьи
+document.getElementById('articlePhotoUpload').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  fetch('/media/upload-single', {method: 'POST', body: formData})
+    .then(r => r.json())
+    .then(data => {
+      if (data.filename) {
+        document.getElementById('articleImage').value = data.filename;
+        const preview = document.getElementById('articlePhotoPreview');
+        preview.src = '/static/uploads/' + data.filename;
+        preview.classList.remove('d-none');
+        document.getElementById('noArticlePhotoLabel').classList.add('d-none');
+      } else {
+        alert('Ошибка загрузки: ' + (data.error || 'неизвестно'));
+      }
+    })
+    .catch(e => alert('Ошибка: ' + e));
 });
 
 // AI: Варианты темы письма

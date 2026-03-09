@@ -1,34 +1,53 @@
+import logging
 from flask import Blueprint, request, jsonify
 from db.models import db, Contact
 
 webhook_bp = Blueprint("webhook", __name__, url_prefix="/webhook")
+logger = logging.getLogger(__name__)
 
 
 @webhook_bp.route("/tilda", methods=["POST"])
 def tilda():
-    """
-    Tilda отправляет данные формы при новой подписке.
-    Настройка: Форма → Интеграции → Webhook → URL: https://yoursite/webhook/tilda
-    """
     data = request.form.to_dict() if request.form else (request.json or {})
 
-    email = (
-        data.get("email") or
-        data.get("Email") or
-        data.get("EMAIL") or ""
-    ).strip().lower()
+    # Tilda отправляет {"test":"test"} при сохранении webhook — просто подтверждаем
+    if data == {"test": "test"} or data.get("test"):
+        return jsonify({"status": "ok"}), 200
+
+    logger.warning(f"Tilda webhook data: {data}")
+
+    # Ищем email по всем ключам (любой регистр)
+    email = ""
+    for key, val in data.items():
+        if "email" in key.lower() or "mail" in key.lower() or "@" in str(val):
+            candidate = str(val).strip().lower()
+            if "@" in candidate:
+                email = candidate
+                break
+    # Fallback: ищем значение с @ среди всех значений
+    if not email:
+        for val in data.values():
+            if "@" in str(val):
+                email = str(val).strip().lower()
+                break
 
     if not email:
-        return jsonify({"error": "no email"}), 400
+        logger.warning(f"No email found in: {data}")
+        return jsonify({"error": "no email", "received": data}), 400
 
-    name = (
-        data.get("name") or data.get("Name") or data.get("NAME") or
-        data.get("firstname") or data.get("Firstname") or ""
-    ).strip()
+    # Ищем имя по всем ключам
+    name = ""
+    for key in data:
+        if any(k in key.lower() for k in ["name", "fname", "имя", "fio"]):
+            name = str(data[key]).strip()
+            break
 
-    phone = (
-        data.get("phone") or data.get("Phone") or data.get("PHONE") or ""
-    ).strip()
+    # Ищем телефон
+    phone = ""
+    for key in data:
+        if any(k in key.lower() for k in ["phone", "tel", "телефон"]):
+            phone = str(data[key]).strip()
+            break
 
     # Разбиваем имя на first/last если есть пробел
     parts = name.split(maxsplit=1)

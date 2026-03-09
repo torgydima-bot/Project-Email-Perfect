@@ -17,7 +17,7 @@ def list_contacts():
             (Contact.first_name.ilike(f"%{q}%")) |
             (Contact.last_name.ilike(f"%{q}%"))
         )
-    contacts = query.order_by(Contact.created_at.desc()).all()
+    contacts = query.order_by(Contact.created_at.desc(), Contact.id.desc()).all()
     total = Contact.query.count()
     subscribed = Contact.query.filter_by(subscribed=True).count()
     return render_template("contacts/list.html", contacts=contacts, q=q,
@@ -37,6 +37,48 @@ def import_contacts():
         return redirect(url_for("contacts.list_contacts"))
 
     return render_template("contacts/import.html")
+
+
+@contacts_bp.route("/add", methods=["POST"])
+def add_contact():
+    email = request.form.get("email", "").strip().lower()
+    if not email:
+        flash("Email обязателен", "danger")
+        return redirect(url_for("contacts.list_contacts"))
+    if Contact.query.filter_by(email=email).first():
+        flash(f"Контакт {email} уже существует", "warning")
+        return redirect(url_for("contacts.list_contacts"))
+    gender = request.form.get("gender", "").strip()
+    if gender not in ("m", "f", ""):
+        gender = ""
+    contact = Contact(
+        email=email,
+        first_name=request.form.get("first_name", "").strip(),
+        last_name=request.form.get("last_name", "").strip(),
+        phone=request.form.get("phone", "").strip(),
+        gender=gender,
+        source="manual",
+        subscribed=True,
+    )
+    db.session.add(contact)
+    db.session.commit()
+    flash(f"Контакт {email} добавлен", "success")
+    return redirect(url_for("contacts.list_contacts"))
+
+
+@contacts_bp.route("/<int:contact_id>/edit", methods=["POST"])
+def edit_contact(contact_id):
+    contact = Contact.query.get_or_404(contact_id)
+    contact.first_name = request.form.get("first_name", "").strip()
+    contact.last_name = request.form.get("last_name", "").strip()
+    contact.phone = request.form.get("phone", "").strip()
+    gender = request.form.get("gender", "").strip()
+    contact.gender = gender if gender in ("m", "f") else ""
+    db.session.commit()
+    return jsonify({"status": "ok",
+                    "first_name": contact.first_name,
+                    "last_name": contact.last_name,
+                    "gender": contact.gender})
 
 
 @contacts_bp.route("/<int:contact_id>/toggle-subscribe", methods=["POST"])

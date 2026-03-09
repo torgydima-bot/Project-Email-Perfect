@@ -3,14 +3,22 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0"><i class="bi bi-bar-chart me-2 text-success"></i>Статистика: {{ campaign.name }}</h4>
-  <a href="/campaigns" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-arrow-left me-1"></i>Назад
-  </a>
+  <h4 class="mb-0"><i class="bi bi-bar-chart me-2 text-success"></i>{{ campaign.name }}</h4>
+  <div class="d-flex gap-2">
+    <a href="/campaigns/{{ campaign.id }}/preview" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-eye me-1"></i>Просмотр
+    </a>
+    <a href="/campaigns" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Назад
+    </a>
+  </div>
 </div>
 
 <!-- Карточки -->
-<div class="row g-3 mb-4">
+{% set sent = campaign.sent_count() %}
+{% set failed = campaign.failed_count() %}
+{% set opens = campaign.unique_open_count() %}
+<div class="row g-3 mb-3">
   <div class="col-auto">
     <div class="card px-4 py-3 text-center">
       <div class="fs-3 fw-bold">{{ campaign.total_count() }}</div>
@@ -19,56 +27,134 @@
   </div>
   <div class="col-auto">
     <div class="card px-4 py-3 text-center">
-      <div class="fs-3 fw-bold text-success">{{ campaign.sent_count() }}</div>
-      <div class="text-muted small">Отправлено</div>
+      <div class="fs-3 fw-bold text-success">{{ sent }}</div>
+      <div class="text-muted small">Доставлено</div>
     </div>
   </div>
   <div class="col-auto">
     <div class="card px-4 py-3 text-center">
-      <div class="fs-3 fw-bold text-danger">{{ campaign.failed_count() }}</div>
+      <div class="fs-3 fw-bold text-danger">{{ failed }}</div>
       <div class="text-muted small">Ошибок</div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card px-4 py-3 text-center" style="border-color:#0d6efd">
+      <div class="fs-3 fw-bold text-primary">{{ opens }}</div>
+      <div class="text-muted small">Открыли</div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card px-4 py-3 text-center" style="border-color:#0d6efd">
+      <div class="fs-3 fw-bold text-primary">
+        {% if sent > 0 %}{{ ((opens / sent) * 100)|round(1) }}%{% else %}—{% endif %}
+      </div>
+      <div class="text-muted small">Open Rate</div>
     </div>
   </div>
   {% if campaign.sent_at %}
   <div class="col-auto">
     <div class="card px-4 py-3 text-center">
-      <div class="fw-bold">{{ campaign.sent_at.strftime('%d.%m.%Y') }}</div>
-      <div class="text-muted small">{{ campaign.sent_at.strftime('%H:%M') }}</div>
+      <div class="fw-bold">{{ (campaign.sent_at | local_dt).strftime('%d.%m.%Y') }}</div>
+      <div class="text-muted small">{{ (campaign.sent_at | local_dt).strftime('%H:%M') }}</div>
     </div>
   </div>
   {% endif %}
 </div>
 
-<!-- Таблица логов -->
-{% if logs %}
-<div class="card">
+<!-- Устройства -->
+{% set device_stats = campaign.device_stats() %}
+{% if device_stats %}
+<div class="card mb-3 p-3">
+  <div class="d-flex flex-wrap gap-4 align-items-center">
+    <span class="text-muted small fw-bold text-uppercase">По устройствам:</span>
+    {% set total_opens = campaign.open_count() %}
+    {% if device_stats.get('mobile') %}
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-phone fs-5 text-success"></i>
+      <div><div class="fw-bold lh-1">{{ device_stats.mobile }}</div>
+      <div class="text-muted" style="font-size:11px">Мобильные{% if total_opens %} · {{ ((device_stats.mobile/total_opens)*100)|round(0)|int }}%{% endif %}</div></div>
+    </div>
+    {% endif %}
+    {% if device_stats.get('desktop') %}
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-monitor fs-5 text-primary"></i>
+      <div><div class="fw-bold lh-1">{{ device_stats.desktop }}</div>
+      <div class="text-muted" style="font-size:11px">Компьютеры{% if total_opens %} · {{ ((device_stats.desktop/total_opens)*100)|round(0)|int }}%{% endif %}</div></div>
+    </div>
+    {% endif %}
+    {% if device_stats.get('tablet') %}
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-tablet fs-5 text-warning"></i>
+      <div><div class="fw-bold lh-1">{{ device_stats.tablet }}</div>
+      <div class="text-muted" style="font-size:11px">Планшеты</div></div>
+    </div>
+    {% endif %}
+    {% if device_stats.get('bot') %}
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-robot fs-5 text-secondary"></i>
+      <div><div class="fw-bold lh-1">{{ device_stats.bot }}</div>
+      <div class="text-muted" style="font-size:11px">Боты</div></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Тестовые отправки -->
+{% if test_logs %}
+<div class="card mb-3">
+  <div class="card-header bg-light d-flex align-items-center gap-2 py-2">
+    <i class="bi bi-send text-warning"></i>
+    <strong>Тестовые отправки</strong>
+    <span class="badge bg-warning text-dark">{{ test_logs|length }}</span>
+  </div>
   <div class="table-responsive">
     <table class="table table-sm table-hover mb-0 align-middle">
       <thead class="table-light">
         <tr>
           <th>Email</th>
           <th>Имя</th>
-          <th>Статус</th>
-          <th>Время</th>
-          <th>Ошибка</th>
+          <th>Открыл</th>
+          <th>Устройство</th>
+          <th>Время открытия</th>
+          <th>Отправлено</th>
         </tr>
       </thead>
       <tbody>
-        {% for log in logs %}
+        {% for log in test_logs %}
+        {% set open_record = latest_opens.get(log.contact_id) if latest_opens is defined else none %}
+        {% set is_opened = open_record is not none and open_record %}
         <tr>
-          <td><small>{{ log.contact.email }}</small></td>
-          <td>{{ log.contact.first_name }} {{ log.contact.last_name }}</td>
           <td>
-            {% if log.status == 'sent' %}
-              <span class="badge bg-success">Отправлено</span>
-            {% elif log.status == 'failed' %}
-              <span class="badge bg-danger">Ошибка</span>
+            <small class="{% if is_opened %}fw-bold text-dark{% else %}text-muted{% endif %}">
+              {{ log.contact.email if log.contact else '—' }}
+            </small>
+          </td>
+          <td><small>{{ log.contact_name if log.contact_name else (log.contact.first_name if log.contact else '') }}</small></td>
+          <td>
+            {% if is_opened %}
+              <span class="badge bg-primary"><i class="bi bi-eye-fill me-1"></i>Открыл</span>
             {% else %}
-              <span class="badge bg-secondary">Ожидание</span>
+              <span class="text-muted small">не открыл</span>
             {% endif %}
           </td>
-          <td><small class="text-muted">{{ log.sent_at.strftime('%d.%m %H:%M') if log.sent_at else '—' }}</small></td>
-          <td><small class="text-danger">{{ log.error_msg or '' }}</small></td>
+          <td>
+            {% if is_opened and open_record %}
+              {% if open_record.device_type == 'mobile' %}<i class="bi bi-phone text-success"></i> мобильный
+              {% elif open_record.device_type == 'desktop' %}<i class="bi bi-monitor text-primary"></i> компьютер
+              {% elif open_record.device_type == 'tablet' %}<i class="bi bi-tablet text-warning"></i> планшет
+              {% elif open_record.device_type == 'bot' %}<i class="bi bi-robot text-secondary"></i> бот
+              {% else %}—{% endif %}
+            {% endif %}
+          </td>
+          <td>
+            <small class="text-muted">
+              {% if is_opened and open_record and open_record.opened_at %}
+                {{ (open_record.opened_at | local_dt).strftime('%d.%m %H:%M') }}
+              {% else %}—{% endif %}
+            </small>
+          </td>
+          <td><small class="text-muted">{{ (log.sent_at | local_dt).strftime('%d.%m %H:%M') if log.sent_at else '—' }}</small></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -76,4 +162,102 @@
   </div>
 </div>
 {% endif %}
+
+<!-- Фильтр -->
+{% if logs %}
+<div class="d-flex gap-2 mb-2 align-items-center">
+  <span class="text-muted small">Показать:</span>
+  <button class="btn btn-sm btn-outline-secondary active" id="filterAll" onclick="filterTable('all')">Все ({{ logs|length }})</button>
+  <button class="btn btn-sm btn-outline-primary" id="filterOpened" onclick="filterTable('opened')">Открыли ({{ opens }})</button>
+  <button class="btn btn-sm btn-outline-secondary" id="filterNotOpened" onclick="filterTable('not_opened')">Не открыли ({{ sent - opens }})</button>
+  {% if failed > 0 %}
+  <button class="btn btn-sm btn-outline-danger" id="filterFailed" onclick="filterTable('failed')">Ошибки ({{ failed }})</button>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle" id="logsTable">
+      <thead class="table-light">
+        <tr>
+          <th style="width:30px">#</th>
+          <th>Email</th>
+          <th>Имя</th>
+          <th>Доставка</th>
+          <th>Открыл</th>
+          <th>Устройство</th>
+          <th>Время отправки</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        {% set open_record = latest_opens.get(log.contact_id) if latest_opens is defined else none %}
+        {% set is_opened = open_record is not none and open_record %}
+        <tr data-status="{{ log.status }}" data-opened="{{ 'yes' if is_opened else 'no' }}">
+          <td class="text-muted small">{{ loop.index }}</td>
+          <td>
+            <small class="{% if is_opened %}fw-bold text-dark{% else %}text-muted{% endif %}">
+              {{ log.contact.email if log.contact else '—' }}
+            </small>
+          </td>
+          <td>
+            <small>{{ log.contact_name if log.contact_name else ((log.contact.first_name if log.contact else '') + ' ' + (log.contact.last_name if log.contact else '')) | trim }}</small>
+          </td>
+          <td>
+            {% if log.status == 'sent' %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Доставлено</span>
+            {% elif log.status == 'failed' %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle" title="{{ log.error_msg }}">Ошибка</span>
+            {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">Ожидание</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if is_opened %}
+              <span class="badge bg-primary"><i class="bi bi-eye-fill me-1"></i>Открыл</span>
+              {% if open_record and open_record.opened_at %}
+              <small class="text-muted ms-1">{{ (open_record.opened_at | local_dt).strftime('%d.%m %H:%M') }}</small>
+              {% endif %}
+            {% elif log.status == 'sent' %}
+              <span class="text-muted small">не открыл</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if is_opened and open_record %}
+              {% if open_record.device_type == 'mobile' %}<i class="bi bi-phone text-success" title="Мобильный"></i>
+              {% elif open_record.device_type == 'desktop' %}<i class="bi bi-monitor text-primary" title="Компьютер"></i>
+              {% elif open_record.device_type == 'tablet' %}<i class="bi bi-tablet text-warning" title="Планшет"></i>
+              {% elif open_record.device_type == 'bot' %}<i class="bi bi-robot text-secondary" title="Бот"></i>
+              {% endif %}
+            {% endif %}
+          </td>
+          <td><small class="text-muted">{{ (log.sent_at | local_dt).strftime('%d.%m %H:%M') if log.sent_at else '—' }}</small></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterTable(type) {
+  document.querySelectorAll('#filterAll,#filterOpened,#filterNotOpened,#filterFailed').forEach(b => b.classList.remove('active'));
+  const btnMap = {all:'filterAll', opened:'filterOpened', not_opened:'filterNotOpened', failed:'filterFailed'};
+  const btn = document.getElementById(btnMap[type]);
+  if (btn) btn.classList.add('active');
+
+  document.querySelectorAll('#logsTable tbody tr').forEach(row => {
+    const status = row.dataset.status;
+    const opened = row.dataset.opened;
+    let show = true;
+    if (type === 'opened') show = opened === 'yes';
+    else if (type === 'not_opened') show = status === 'sent' && opened === 'no';
+    else if (type === 'failed') show = status === 'failed';
+    row.style.display = show ? '' : 'none';
+  });
+}
+</script>
 {% endblock %}

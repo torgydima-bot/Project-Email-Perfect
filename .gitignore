@@ -1,5 +1,8 @@
 # Секреты
 .env
+config.py
+deploy/env_server.txt
+deploy/deploy.py
 
 # Python
 __pycache__/

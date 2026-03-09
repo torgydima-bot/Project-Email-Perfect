@@ -1,5 +1,6 @@
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+import json
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from db.models import db, Product
 from services.csv_importer import import_products_from_file
 
@@ -34,6 +35,53 @@ def delete_product(product_id):
     db.session.commit()
     flash("Продукт удалён", "info")
     return redirect(url_for("products.list_products"))
+
+
+@products_bp.route("/<int:product_id>/edit", methods=["GET", "POST"])
+def edit_product(product_id):
+    product = Product.query.get_or_404(product_id)
+    if request.method == "POST":
+        product.name = request.form.get("name", product.name).strip() or product.name
+        product.url = request.form.get("url", product.url).strip()
+        db.session.commit()
+        flash("Продукт обновлён", "success")
+        return redirect(url_for("products.list_products"))
+    return render_template("products/edit.html", product=product)
+
+
+@products_bp.route("/translate-names", methods=["POST"])
+def translate_names():
+    """Переводит все названия продуктов на русский через Claude AI."""
+    products = Product.query.all()
+    names = [p.name for p in products]
+    if not names:
+        return jsonify({"error": "Нет продуктов"}), 400
+
+    from services.ai_service import _ask
+    names_json = json.dumps(names, ensure_ascii=False)
+    result_raw = _ask(
+        f"Переведи эти названия товаров (витамины, БАД, минералы) на русский язык. "
+        f"Сохрани смысл, не добавляй лишних слов. Верни ТОЛЬКО валидный JSON-массив строк "
+        f"в том же порядке, без markdown:\n{names_json}",
+        max_tokens=2000
+    )
+
+    try:
+        if "```" in result_raw:
+            result_raw = result_raw.split("```")[1]
+            if result_raw.startswith("json"):
+                result_raw = result_raw[4:]
+        translated = json.loads(result_raw)
+        if isinstance(translated, list) and len(translated) == len(products):
+            for p, new_name in zip(products, translated):
+                if new_name and new_name.strip():
+                    p.name = new_name.strip()
+            db.session.commit()
+            return jsonify({"ok": True, "count": len(products)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"error": "Неверный формат ответа AI"}), 500
 
 
 @products_bp.route("/<int:product_id>/set-photo", methods=["POST"])

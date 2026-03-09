@@ -4,10 +4,39 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0"><i class="bi bi-box-seam me-2 text-success"></i>Каталог продуктов</h4>
-  <a href="/products/import" class="btn btn-success btn-sm">
-    <i class="bi bi-upload me-1"></i>Импорт CSV
-  </a>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-success btn-sm" id="btnTranslate">
+      <i class="bi bi-stars me-1"></i>AI: перевести на русский
+    </button>
+    <a href="/products/import" class="btn btn-success btn-sm">
+      <i class="bi bi-upload me-1"></i>Импорт CSV
+    </a>
+  </div>
 </div>
+<div id="translateMsg" class="d-none alert alert-info mb-3">
+  <span class="spinner-border spinner-border-sm me-2"></span>Перевожу названия через AI... (~20 сек)
+</div>
+
+{% block scripts %}
+<script>
+document.getElementById('btnTranslate').addEventListener('click', () => {
+  if (!confirm('Перевести все названия продуктов на русский язык через AI?')) return;
+  document.getElementById('translateMsg').classList.remove('d-none');
+  document.getElementById('btnTranslate').disabled = true;
+  fetch('/products/translate-names', {method: 'POST'})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) { location.reload(); }
+      else { alert('Ошибка: ' + (d.error || 'неизвестная')); }
+    })
+    .catch(e => alert('Ошибка: ' + e))
+    .finally(() => {
+      document.getElementById('translateMsg').classList.add('d-none');
+      document.getElementById('btnTranslate').disabled = false;
+    });
+});
+</script>
+{% endblock %}
 
 <div class="card">
   <div class="table-responsive">
@@ -45,6 +74,9 @@
             <span class="badge bg-secondary">{{ p.used_count }}×</span>
           </td>
           <td class="text-end">
+            <a href="/products/{{ p.id }}/edit" class="btn btn-sm btn-outline-secondary me-1">
+              <i class="bi bi-pencil"></i>
+            </a>
             <form method="post" action="/products/{{ p.id }}/delete" class="d-inline"
                   onsubmit="return confirm('Удалить продукт?')">
               <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
